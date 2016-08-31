@@ -67,7 +67,7 @@ func (d *driver) Path(r volume.Request) volume.Response {
 	return volume.Response{Mountpoint: d.mountpoint(r.Name)}
 }
 
-func (d *driver) Mount(r volume.Request) volume.Response {
+func (d *driver) Mount(r volume.MountRequest) volume.Response {
 	vol, err := d.store.Get(r.Name)
 	if err != nil {
 		return volume.Response{Err: err.Error()}
@@ -81,7 +81,7 @@ func (d *driver) Mount(r volume.Request) volume.Response {
 	return volume.Response{Mountpoint: mount}
 }
 
-func (d driver) Unmount(r volume.Request) volume.Response {
+func (d driver) Unmount(r volume.UnmountRequest) volume.Response {
 	vol, err := d.store.Get(r.Name)
 	if err != nil {
 		return volume.Response{Err: err.Error()}
@@ -134,4 +134,9 @@ func (d *driver) createPolicy(name, policy string) (string, error) {
 		return "", err
 	}
 	return secret.Auth.ClientToken, nil
+}
+func (d driver) Capabilities(r volume.Request) volume.Response {
+    var res volume.Response
+    res.Capabilities = volume.Capability{Scope: "local"}
+    return res
 }
