@@ -40,6 +40,7 @@ func main() {
 	vault.DefaultConfig = &api.Config{Address: *url, HttpClient: http.DefaultClient}
 	d := newDriver(*root, *token)
 	h := volume.NewHandler(d)
+	log.Println("Starting vault driver socket...")
 	fmt.Println(h.ServeUnix("root", "vault"))
 }
 

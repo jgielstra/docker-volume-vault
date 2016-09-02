@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
-
+  "log"
 	"github.com/calavera/docker-volume-vault/store"
 	"github.com/calavera/docker-volume-vault/vault"
 	"github.com/docker/go-plugins-helpers/volume"
@@ -69,6 +69,7 @@ func (d *driver) Path(r volume.Request) volume.Response {
 
 func (d *driver) Mount(r volume.MountRequest) volume.Response {
 	vol, err := d.store.Get(r.Name)
+	log.Println("Mounting "+r.Name)
 	if err != nil {
 		return volume.Response{Err: err.Error()}
 	}
@@ -83,6 +84,7 @@ func (d *driver) Mount(r volume.MountRequest) volume.Response {
 
 func (d driver) Unmount(r volume.UnmountRequest) volume.Response {
 	vol, err := d.store.Get(r.Name)
+	log.Println("Unmounting "+r.Name)
 	if err != nil {
 		return volume.Response{Err: err.Error()}
 	}

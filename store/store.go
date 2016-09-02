@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"sync"
+	"log"
 )
 
 var (
@@ -35,7 +36,7 @@ func (m *MemoryStore) Get(name string) (*Volume, error) {
 
 	v, ok := m.volumes[name]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, errors.New("Volume not found: "+name)
 	}
 	return v, nil
 }
@@ -43,7 +44,7 @@ func (m *MemoryStore) Get(name string) (*Volume, error) {
 func (m *MemoryStore) Set(volume *Volume) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-
+  log.Println("Adding MEMSTORE Volume:"+volume.Name)
 	m.volumes[volume.Name] = volume
 	return nil
 }
