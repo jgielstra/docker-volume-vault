@@ -1,9 +1,9 @@
 package store
 
+// TODO: back this upto disk..
 import (
 	"errors"
 	"sync"
-	"log"
 )
 
 var (
@@ -16,6 +16,7 @@ type Store interface {
 	Set(*Volume) error
 	Setx(*Volume) error
 	Del(string) error
+	List() []string
 }
 
 type MemoryStore struct {
@@ -36,7 +37,7 @@ func (m *MemoryStore) Get(name string) (*Volume, error) {
 
 	v, ok := m.volumes[name]
 	if !ok {
-		return nil, errors.New("Volume not found: "+name)
+		return nil, ErrNotFound
 	}
 	return v, nil
 }
@@ -44,7 +45,7 @@ func (m *MemoryStore) Get(name string) (*Volume, error) {
 func (m *MemoryStore) Set(volume *Volume) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-  log.Println("Adding MEMSTORE Volume:"+volume.Name)
+
 	m.volumes[volume.Name] = volume
 	return nil
 }
@@ -66,4 +67,14 @@ func (m *MemoryStore) Del(name string) error {
 
 	delete(m.volumes, name)
 	return nil
+}
+func (m *MemoryStore) List() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	keys := make([]string, 0, len(m.volumes))
+	 for k := range m.volumes {
+			 keys = append(keys, k)
+	 }
+   return keys
 }

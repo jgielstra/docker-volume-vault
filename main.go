@@ -4,13 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/calavera/docker-volume-vault/vault"
 	"github.com/docker/go-plugins-helpers/volume"
-	"github.com/hashicorp/vault/api"
 	"golang.org/x/sys/unix"
 )
 
@@ -21,6 +19,8 @@ var (
 	root        = flag.String("root", defaultPath, "Docker volumes root directory")
 	url         = flag.String("url", "", "Vault server URL")
 	token       = flag.String("token", "", "Vault root token")
+	insecure    = flag.Bool("insecure", false, "Skip SSL validations")
+
 )
 
 func main() {
@@ -37,11 +37,11 @@ func main() {
 
 	lockMemory()
 
-	vault.DefaultConfig = &api.Config{Address: *url, HttpClient: http.DefaultClient}
+	vault.DefaultConfig = vault.NewConfig(*url, *insecure)
 	d := newDriver(*root, *token)
 	h := volume.NewHandler(d)
-	log.Println("Starting vault driver socket...")
-	fmt.Println(h.ServeUnix("root", "vault"))
+	fmt.Println("Vault Volume Plugin Running...!!!")
+	fmt.Println(h.ServeUnix("docker", id))
 }
 
 // Locks memory, preventing memory from being written to disk as swap

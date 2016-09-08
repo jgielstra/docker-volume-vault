@@ -35,12 +35,13 @@ func (v *Volume) Mount(root string) (string, error) {
 	defer v.lock.Unlock()
 
 	m := filepath.Join(root, v.Name)
+	log.Printf(m)
 	if v.server != nil {
 		// Server already mounted
 		return m, nil
 	}
 
-	log.Printf("Mounting volume %s on %s\n", v.Name, m)
+	log.Printf("[INF]: Mounting volume %s on %s\n", v.Name, m)
 	fi, err := os.Lstat(m)
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(m, 0755); err != nil {
