@@ -49,12 +49,3 @@ docker run -it --privileged --rm -v /run/docker/plugins/vault.sock:/run/docker/p
 
 apk --update add fuse ca-certificates
 ```
-
-
-## DO NOT COMMIT
-
-./docker-volume-vault -token developer-token-123 -url https://172.17.0.4:8200 -insecure true
-docker run -d -p 8200:8200 --env MODE=DEV --name vault c12e/vault
-
-sudo ./docker-volume-vault -insecure=true -token developer-token-123 -url https://172.17.0.4:8200
-docker run --rm -it -v "$PWD":/go -w /go golang:1.7 go build -o docker-volume-vault github.com/calavera/docker-volume-vault
