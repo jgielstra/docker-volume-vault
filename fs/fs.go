@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -28,93 +27,87 @@ func NewFs(client *api.Client) (*fs, nodefs.Node) {
 
 	kwfs := &fs{readonlyfs, client}
 	nfs := pathfs.NewPathNodeFs(kwfs, nil)
-	nfs.SetDebug(true)
+	//nfs.SetDebug(true)
 	return kwfs, nfs.Root()
+}
+
+func GetDirectories(keys []interface{}) map[string]bool {
+	res := map[string]bool{}
+	for _, k := range keys {
+		k := k.(string)
+		res[strings.TrimRight(k, "/")] = true
+	}
+	return res
 }
 
 // GetAttr is a FUSE function which tells FUSE which files and directories exist.
 func (f *fs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	log.Printf("GetAttr '%s'\n", name)
-	var attr *fuse.Attr
+	// TODO multiple rest calls,  perhaps cache atts/paths by mount point ??
 	switch {
-	case name == "": // Base directory
-		m, err := f.client.Sys().ListMounts()
-		if err != nil {
-			log.Println(err)
-			attr = f.directoryAttr(1, 0755)
-		}
-		attr = f.directoryAttr(len(m), 0755)
-	case name == "secret":
-		attr = f.directoryAttr(1, 0755)
+	case name == "":
+		return f.directoryAttr(1, 0755), fuse.OK
 	case name == "sys":
-		attr = f.directoryAttr(1, 0755)
+		return f.directoryAttr(1, 0755), fuse.OK
+	case name == "secret":
+		return f.directoryAttr(1, 0755), fuse.OK
+
 	case strings.HasPrefix(name, "secret/"):
-		s, err := f.client.Logical().Read(name)
+
+		// IF we have  an attribute, we know it is a folder..
+		atts, err := f.client.Logical().Read(name)
 		if err != nil {
-			log.Println(err)
+			log.Println("[ERR]: %v", err)
 			return nil, fuse.ENOENT
 		}
-
-		fmt.Println(name, ":", s)
-
-		if s == nil || s.Data == nil {
-			attr = f.directoryAttr(1, 0755)
-		} else {
-			fmt.Println(s.Data["value"])
-			if value, ok := s.Data["value"]; ok {
-				attr = f.secretAttr(value.(string) + "\n")
-			}
+		if atts != nil && len(atts.Data) > 0 {
+			return f.directoryAttr(1, 0755), fuse.OK
+		}
+		// IF we have  child node, we know it is a folder..
+		dirs, err := f.client.Logical().List(name)
+		if err != nil {
+			log.Println("[ERR]: %v", err)
+			return nil, fuse.ENOENT
+		}
+		if dirs != nil && len(dirs.Data) > 0 {
+			return f.directoryAttr(1, 0755), fuse.OK
 		}
 	}
-
-	if attr != nil {
-		return attr, fuse.OK
-	}
-	return nil, fuse.ENOENT
+	return f.secretAttr("string for length"), fuse.OK
 }
 
 // Open is a FUSE function where an in-memory open file struct is constructed.
 func (f *fs) Open(name string, flags uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
-	log.Printf("Open '%s'\n", name)
 	var file nodefs.File
 	switch {
-	case name == "":
-		return nil, EISDIR
-	case name == "secret" || name == "sys":
+	case name == "" || name == "secret" || name == "sys":
 		return nil, EISDIR
 	case strings.HasPrefix(name, "secret/"):
-		s, err := f.client.Logical().Read(name)
+		lslash := strings.LastIndex(name, "/")
+		attr := name[lslash+1 : len(name)]
+		path := name[0:lslash]
+		s, err := f.client.Logical().Read(path)
 		if err != nil {
 			log.Println(err)
 			return nil, fuse.ENOENT
 		}
-
-		if s == nil || s.Data == nil {
-			return nil, fuse.ENOENT
+		if s != nil && s.Data != nil {
+			if cont, ok := s.Data[attr]; ok {
+				file = nodefs.NewReadOnlyFile(nodefs.NewDataFile([]byte(cont.(string) + "\n")))
+				return file, fuse.OK
+			}
 		}
-
-		file = nodefs.NewDataFile([]byte(s.Data["value"].(string) + "\n"))
-	}
-
-	if file != nil {
-		file = nodefs.NewReadOnlyFile(file)
-		return file, fuse.OK
 	}
 	return nil, fuse.ENOENT
 }
 
 // OpenDir is a FUSE function called when performing a directory listing.
 func (f *fs) OpenDir(name string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
-	log.Printf("OpenDir '%s'\n", name)
 	var entries []fuse.DirEntry
-
-	if name == "" {
+	switch {
+	case name == "":
 		mounts, err := f.client.Sys().ListMounts()
-		if err != nil {
-			log.Println(err)
-			return entries, fuse.OK
-		}
-		if len(mounts) == 0 {
+		if err != nil || len(mounts) == 0 {
+			log.Printf("[ERR] Opendir: %v", err)
 			return entries, fuse.OK
 		}
 
@@ -124,6 +117,36 @@ func (f *fs) OpenDir(name string, context *fuse.Context) ([]fuse.DirEntry, fuse.
 				Mode: unix.S_IFDIR,
 				Name: strings.TrimSuffix(name, "/"),
 			})
+		}
+	case strings.HasPrefix(name, "secret"):
+		listing, err := f.client.Logical().List(name)
+		if err != nil {
+			log.Println(err)
+			return entries, fuse.OK
+		}
+		if listing != nil {
+			if _, ok := listing.Data["keys"]; ok {
+				keys := GetDirectories(listing.Data["keys"].([]interface{}))
+				for name, _ := range keys {
+					entries = append(entries, fuse.DirEntry{
+						Mode: unix.S_IFDIR,
+						Name: name, //strings.TrimSuffix(name, "/"),
+					})
+				}
+			}
+		}
+		files, err := f.client.Logical().Read(name)
+		if err != nil {
+			log.Println(err)
+			return entries, fuse.OK
+		}
+		if files != nil && files.Data != nil {
+			for k, _ := range files.Data {
+				entries = append(entries, fuse.DirEntry{
+					Mode: unix.S_IFREG,
+					Name: k, //strings.TrimSuffix(name, "/"),
+				})
+			}
 		}
 	}
 	return entries, fuse.OK
@@ -141,7 +164,6 @@ func (f *fs) secretAttr(s string) *fuse.Attr {
 		Size: size,
 		Mode: 0444 | unix.S_IFREG,
 	}
-
 	return attr
 }
 

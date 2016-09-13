@@ -3,7 +3,7 @@ package vault
 import (
 	"crypto/tls"
 	"net/http"
-  "fmt"
+
 	"github.com/hashicorp/vault/api"
 )
 
@@ -11,7 +11,6 @@ var DefaultConfig *api.Config
 
 // NewConfig creates a new config
 func NewConfig(address string, insecure bool) *api.Config {
-	fmt.Printf("GOTHERE\n")
 	return &api.Config{
 		Address: address,
 		HttpClient: &http.Client{

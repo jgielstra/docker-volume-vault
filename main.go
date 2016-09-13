@@ -40,7 +40,7 @@ func main() {
 	vault.DefaultConfig = vault.NewConfig(*url, *insecure)
 	d := newDriver(*root, *token)
 	h := volume.NewHandler(d)
-	fmt.Println("Vault Volume Plugin Running...!!!")
+	fmt.Println("Vault Volume Plugin Running...")
 	fmt.Println(h.ServeUnix("docker", id))
 }
 

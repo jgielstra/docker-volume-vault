@@ -11,13 +11,13 @@ I just wrote all this code before going to sleep last night.
 ## Usage
 
 0) Start vault
-`docker run `
+`docker run -d -p 8200:8200 --env MODE=DEV --name vault c12e/vault`
+
 1) Create a volume
 `docker volume create --driver vault --name mysecret`
 
 2) Mount the volume with the driver in the docker container
 `docker run --volume-driver vault --volume mysecret:/etc/secret alpine sh`
-
 
 docker run --rm -it -v "$PWD":/go -w /go golang:1.7 go build -o docker-volume-vault github.com/calavera/docker-volume-vault
 
@@ -53,6 +53,8 @@ apk --update add fuse ca-certificates
 
 ## DO NOT COMMIT
 
-./docker-volume-vault -token developer-token-123 -url https://172.17.0.4:8200
+./docker-volume-vault -token developer-token-123 -url https://172.17.0.4:8200 -insecure true
+docker run -d -p 8200:8200 --env MODE=DEV --name vault c12e/vault
 
+sudo ./docker-volume-vault -insecure=true -token developer-token-123 -url https://172.17.0.4:8200
 docker run --rm -it -v "$PWD":/go -w /go golang:1.7 go build -o docker-volume-vault github.com/calavera/docker-volume-vault
